@@ -25,7 +25,7 @@ https://docs.qgroundcontrol.com/master/en/qgc-user-guide/releases/daily_builds.h
 ### Setup the Workspace
 Navigate to the directory you would like to place the worskpace and then run the following
 ```
-git clone https://github.com/ARK-Electronics/px4_ros2_examples_ws
+git clone git@github.com:ROM-robotics/px4_ros2_examples_ws.git -b rom_custom_mode
 ```
 Then navigate into the workspace:
 ```
@@ -49,7 +49,10 @@ source install/setup.bash
 #### Run the simulation environment
 
 ```
-cd PX4-Autopilot/
+cd PX4-Autopilot
+git fetch origin
+git checkout 8070c70
+git submodule update --init --recursive
 make px4_sitl_default gz_x500
 ```
 
@@ -69,26 +72,10 @@ Take off with the drone using the GUI
 I created a launch file that you can use. It currently contains only one node, so it might seem limited, but you can expand on it. The file includes three basic patterns: circle, spiral, and figure-8. These are ROS2 parameters that you can set either directly in the launch file or via command line arguments. If no pattern is specified, the default is circle.
 
 ```
-cd px4_ros2_examples_ws/
-source install/setup.bash 
+cd rom_flight_control/
+tmuxinator
 ```
-AND
-```
-ros2 run custom_mode custom_mode
-```
-OR
-```
-ros2 launch custom_mode custom_mode.launch.py
-```
-OR
-```
-ros2 launch custom_mode custom_mode.launch.py trajectory_type:=spiral
-```
-OR
-```
-ros2 run custom_mode custom_mode --ros-args -p trajectory_type:=figure_8
 
-```
 
 #### Start it from QGC
 You can just start the custom node from the GUI or you can also map it to your remote control
