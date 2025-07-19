@@ -49,9 +49,11 @@ source install/setup.bash
 #### Run the simulation environment
 
 ```
+git clone https://github.com/ROM-robotics/PX4-Autopilot.git
 cd PX4-Autopilot
 git fetch origin
 git checkout 8070c70
+# ဒါမှ မဟုတ် git checkout rom_custom_mode
 git submodule update --init --recursive
 make px4_sitl_default gz_x500
 ```
