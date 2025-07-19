@@ -1,6 +1,6 @@
 #include "rclcpp/rclcpp.hpp"
 
-#include <rom_px4_1_16/rom_mode.hpp>
+#include <rom_dynamics_special_mode/rom_mode.hpp>
 #include <px4_ros2/components/node_with_mode.hpp>
 
 using MyNodeWithMode = px4_ros2::NodeWithMode<FlightModeTest>;
