@@ -9,6 +9,7 @@
 #include <px4_ros2/components/node_with_mode.hpp>
 
 using MyNodeWithModeExecutor = px4_ros2::NodeWithModeExecutor<ModeExecutorTest, FlightWithLocalPosition>;
+//using MyNodeWithModeExecutor = px4_ros2::NodeWithModeExecutor<ModeExecutorTest, FlightWithVelocity>;
 
 static const std::string kNodeName = "ROM_Hacker";
 static const bool kEnableDebugOutput = true;

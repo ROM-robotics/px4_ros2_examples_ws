@@ -29,14 +29,19 @@ if(BUILD_TESTING)
 endif()
 
 include_directories(include ${Eigen3_INCLUDE_DIRS})
+
 add_executable(rom_go_triangle src/rom_mode.cpp)
 target_link_libraries(rom_go_triangle PUBLIC Eigen3::Eigen px4_ros2_cpp::px4_ros2_cpp rclcpp::rclcpp)
 
 add_executable(rom_dynamics_mode_executor src/rom_mode_executor.cpp)
 target_link_libraries(rom_dynamics_mode_executor PUBLIC Eigen3::Eigen px4_ros2_cpp::px4_ros2_cpp rclcpp::rclcpp)
 
+add_executable(rom_go_triangle_land src/rom_mode_and_land.cpp)
+target_link_libraries(rom_go_triangle_land PUBLIC Eigen3::Eigen px4_ros2_cpp::px4_ros2_cpp rclcpp::rclcpp)
+
 install(TARGETS
         rom_go_triangle
+        rom_go_triangle_land
         rom_dynamics_mode_executor
         DESTINATION lib/${PROJECT_NAME})
 
