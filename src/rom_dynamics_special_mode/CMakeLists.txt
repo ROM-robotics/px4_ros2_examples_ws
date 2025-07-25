@@ -7,11 +7,15 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(px4_msgs REQUIRED)
 find_package(px4_ros2_cpp REQUIRED)
+find_package(cv_bridge REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(OpenCV REQUIRED)
 
 find_package(eigen3_cmake_module REQUIRED)
 find_package(Eigen3 REQUIRED)
@@ -28,16 +32,19 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-include_directories(include ${Eigen3_INCLUDE_DIRS})
+include_directories(include ${Eigen3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
 
-add_executable(rom_go_triangle src/rom_mode.cpp)
-target_link_libraries(rom_go_triangle PUBLIC Eigen3::Eigen px4_ros2_cpp::px4_ros2_cpp rclcpp::rclcpp)
+add_executable(go_triangle src/rom_go_triangle_mode.cpp)
+target_link_libraries(go_triangle PUBLIC Eigen3::Eigen px4_ros2_cpp::px4_ros2_cpp rclcpp::rclcpp)
 
-add_executable(rom_dynamics_mode_executor src/rom_mode_executor.cpp)
-target_link_libraries(rom_dynamics_mode_executor PUBLIC Eigen3::Eigen px4_ros2_cpp::px4_ros2_cpp rclcpp::rclcpp)
+add_executable(takeoff_gt_land_executor src/rom_takeoff_gotriangle_land_mode_executor.hpp.cpp)
+target_link_libraries(takeoff_gt_land_executor PUBLIC Eigen3::Eigen px4_ros2_cpp::px4_ros2_cpp rclcpp::rclcpp)
 
-add_executable(rom_go_triangle_land src/rom_mode_and_land.cpp)
-target_link_libraries(rom_go_triangle_land PUBLIC Eigen3::Eigen px4_ros2_cpp::px4_ros2_cpp rclcpp::rclcpp)
+add_executable(go_triangle_land src/rom_go_triangle_land_mode.cpp)
+target_link_libraries(go_triangle_land PUBLIC Eigen3::Eigen px4_ros2_cpp::px4_ros2_cpp rclcpp::rclcpp)
+
+add_executable(rom_follow_road src/rom_follow_road.cpp)
+target_link_libraries(rom_follow_road PUBLIC Eigen3::Eigen px4_ros2_cpp::px4_ros2_cpp rclcpp::rclcpp ${OpenCV_LIBS} cv_bridge::cv_bridge)
 
 install(TARGETS
         rom_go_triangle
