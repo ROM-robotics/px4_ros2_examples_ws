@@ -34,22 +34,28 @@ endif()
 
 include_directories(include ${Eigen3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
 
-add_executable(go_triangle src/rom_go_triangle_mode.cpp)
+add_executable(go_triangle src/rom_gotriangle_mode.cpp)
 target_link_libraries(go_triangle PUBLIC Eigen3::Eigen px4_ros2_cpp::px4_ros2_cpp rclcpp::rclcpp)
 
-add_executable(takeoff_gt_land_executor src/rom_takeoff_gotriangle_land_mode_executor.hpp.cpp)
+add_executable(takeoff_gt_land_executor src/rom_takeoff_gotriangle_land_mode_executor.cpp)
 target_link_libraries(takeoff_gt_land_executor PUBLIC Eigen3::Eigen px4_ros2_cpp::px4_ros2_cpp rclcpp::rclcpp)
 
-add_executable(go_triangle_land src/rom_go_triangle_land_mode.cpp)
+add_executable(go_triangle_land src/rom_gotriangle_land_mode.cpp)
 target_link_libraries(go_triangle_land PUBLIC Eigen3::Eigen px4_ros2_cpp::px4_ros2_cpp rclcpp::rclcpp)
 
 add_executable(rom_follow_road src/rom_follow_road.cpp)
 target_link_libraries(rom_follow_road PUBLIC Eigen3::Eigen px4_ros2_cpp::px4_ros2_cpp rclcpp::rclcpp ${OpenCV_LIBS} cv_bridge::cv_bridge)
 
+add_executable(test_setpoint src/test_setpoint.cpp)
+target_link_libraries(test_setpoint PUBLIC Eigen3::Eigen px4_ros2_cpp::px4_ros2_cpp rclcpp::rclcpp ${OpenCV_LIBS} cv_bridge::cv_bridge)
+install(TARGETS test_setpoint DESTINATION lib/${PROJECT_NAME})
+
 install(TARGETS
-        rom_go_triangle
-        rom_go_triangle_land
-        rom_dynamics_mode_executor
+        go_triangle
+        go_triangle_land
+        takeoff_gt_land_executor
+        rom_follow_road
+        test_setpoint
         DESTINATION lib/${PROJECT_NAME})
 
 ament_package()

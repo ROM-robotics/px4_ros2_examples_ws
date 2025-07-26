@@ -5,7 +5,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 
-#include <rom_dynamics_special_mode/rom_mode_executor.hpp>
+#include <rom_dynamics_special_mode/rom_takeoff_gotriangle_land_mode_executor.hpp>
 #include <px4_ros2/components/node_with_mode.hpp>
 
 using MyNodeWithModeExecutor = px4_ros2::NodeWithModeExecutor<ModeExecutorTest, FlightWithLocalPosition>;

@@ -1,11 +1,11 @@
 #include "rclcpp/rclcpp.hpp"
 
-#include <rom_dynamics_special_mode/rom_mode.hpp>
+#include <rom_dynamics_special_mode/rom_gotriangle_land_mode.hpp>
 #include <px4_ros2/components/node_with_mode.hpp>
 
 using MyNodeWithMode = px4_ros2::NodeWithMode<FlightModeTest>;
 
-static const std::string kNodeName = "rom_triangle";
+static const std::string kNodeName = "triangle_and_land";
 static const bool kEnableDebugOutput = true;
 
 int main(int argc, char * argv[])

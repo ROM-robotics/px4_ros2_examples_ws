@@ -35,18 +35,14 @@ using namespace px4_ros2::literals; // NOLINT
 class RoadFollowMode : public px4_ros2::ModeBase
 {
 public:
-  explicit RoadFollowMode(rclcpp::Node & node) : ModeBase(node, kName)
+  explicit RoadFollowMode(rclcpp::Node & node) : ModeBase(node, kName), _node(node)
   {
     _vehicle_local_position = std::make_shared<px4_ros2::OdometryLocalPosition>(*this);
-
-    // Subscribe to /road_line topic (sensor_msgs::msg::Image)
     _road_line_sub = node.create_subscription<sensor_msgs::msg::Image>(
       "/road_line",
       10,
       std::bind(&RoadFollowMode::roadLineCallback, this, std::placeholders::_1)
     );
-
-    // Publisher for trajectory setpoint (velocity control)
     _traj_pub = node.create_publisher<px4_msgs::msg::TrajectorySetpoint>(
       "/fmu/in/trajectory_setpoint", 10);
   }
@@ -82,7 +78,7 @@ public:
           try {
             cv_ptr = cv_bridge::toCvCopy(_latest_road_line_img, "bgr8");
           } catch (cv_bridge::Exception & e) {
-            RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
+            RCLCPP_ERROR(_node.get_logger(), "cv_bridge exception: %s", e.what());
             setVelocitySetpoint(Eigen::Vector3f::Zero(), 0.0f);
             break;
           }
@@ -159,7 +155,20 @@ public:
     }
   }
 
+  // Set velocity setpoint (NED frame) using PX4 TrajectorySetpoint
+  void setVelocitySetpoint(const Eigen::Vector3f & velocity_ned, float yaw_rate)
+  {
+    px4_msgs::msg::TrajectorySetpoint msg;
+    msg.velocity[0] = velocity_ned.x(); // North
+    msg.velocity[1] = velocity_ned.y(); // East
+    msg.velocity[2] = velocity_ned.z(); // Down
+    msg.yaw = _vehicle_local_position->heading(); // Current heading (rad)
+    msg.yawspeed = yaw_rate; // Yaw rate (rad/s)
+    _traj_pub->publish(msg);
+  }
+
 private:
+  rclcpp::Node & _node;
   enum class State
   {
     SettlingAtStart = 0,
@@ -180,17 +189,5 @@ private:
     // Store the latest image for processing
     _latest_road_line_img = msg;
     // You can add image processing logic here as needed
-  }
-
-  // Set velocity setpoint (NED frame) using PX4 TrajectorySetpoint
-  void setVelocitySetpoint(const Eigen::Vector3f & velocity_ned, float yaw_rate)
-  {
-    px4_msgs::msg::TrajectorySetpoint msg;
-    msg.velocity[0] = velocity_ned.x(); // North
-    msg.velocity[1] = velocity_ned.y(); // East
-    msg.velocity[2] = velocity_ned.z(); // Down
-    msg.yaw = _vehicle_local_position->heading(); // Current heading (rad)
-    msg.yaw_speed = yaw_rate; // Yaw rate (rad/s)
-    _traj_pub->publish(msg);
   }
 };
