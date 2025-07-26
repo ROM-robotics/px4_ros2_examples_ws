@@ -1,16 +1,3 @@
-  // --- LINE FOLLOWING PARAMETERS ---
-  float kp_yaw = 0.2f;
-  float angle_tolerance = 0.2f;
-  float filtered_angle_error = 0.0f;
-  float alpha_angle = 0.2f;
-
-  float kp_centroid = 2.0f;
-  float max_lateral_speed = 2.5f;
-  float prev_lateral_vel = 0.0f;
-  float alpha_vel = 0.3f;
-
-  float forward_speed = 3.0f;
-
 #pragma once
 
 #include <px4_ros2/components/mode.hpp>
@@ -28,6 +15,21 @@
 #include <Eigen/Core>
 #include <algorithm>
 
+  // --- LINE FOLLOWING PARAMETERS ---
+  float kp_yaw = 0.2f;
+  float angle_tolerance = 0.2f;
+  float filtered_angle_error = 0.0f;
+  float alpha_angle = 0.2f;
+
+  float kp_centroid = 2.0f;
+  float max_lateral_speed = 2.5f;
+  float prev_lateral_vel = 0.0f;
+  float alpha_vel = 0.3f;
+
+  float forward_speed = 3.0f;
+
+#include <px4_ros2/control/setpoint_types/experimental/trajectory.hpp>
+
 static const std::string kName = "ROM FollowRoad";
 
 using namespace px4_ros2::literals; // NOLINT
@@ -39,18 +41,12 @@ public:
   {
     _vehicle_local_position = std::make_shared<px4_ros2::OdometryLocalPosition>(*this);
     _road_line_sub = node.create_subscription<sensor_msgs::msg::Image>(
-      "/road_line",
-      10,
-      std::bind(&RoadFollowMode::roadLineCallback, this, std::placeholders::_1)
+      "/road_line", 10, std::bind(&RoadFollowMode::roadLineCallback, this, std::placeholders::_1)
     );
-    _traj_pub = node.create_publisher<px4_msgs::msg::TrajectorySetpoint>(
-      "/fmu/in/trajectory_setpoint", 10);
+    _traj_setpoint = std::make_shared<px4_ros2::TrajectorySetpointType>(*this);
   }
 
-  void onActivate() override
-  {
-    _state = State::SettlingAtStart;
-  }
+  void onActivate() override {    _state = State::SettlingAtStart;    }
 
   void onDeactivate() override {}
 
@@ -158,13 +154,18 @@ public:
   // Set velocity setpoint (NED frame) using PX4 TrajectorySetpoint
   void setVelocitySetpoint(const Eigen::Vector3f & velocity_ned, float yaw_rate)
   {
-    px4_msgs::msg::TrajectorySetpoint msg;
-    msg.velocity[0] = velocity_ned.x(); // North
-    msg.velocity[1] = velocity_ned.y(); // East
-    msg.velocity[2] = velocity_ned.z(); // Down
-    msg.yaw = _vehicle_local_position->heading(); // Current heading (rad)
-    msg.yawspeed = yaw_rate; // Yaw rate (rad/s)
-    _traj_pub->publish(msg);
+    // px4_msgs::msg::TrajectorySetpoint msg;
+    // msg.velocity[0] = velocity_ned.x(); // North
+    // msg.velocity[1] = velocity_ned.y(); // East
+    // msg.velocity[2] = velocity_ned.z(); // Down
+    // msg.yaw = _vehicle_local_position->heading(); // Current heading (rad)
+    // msg.yawspeed = yaw_rate; // Yaw rate (rad/s)
+    // _traj_pub->publish(msg);
+    
+    Eigen::Vector3f acceleration_ned_m_s2 = Eigen::Vector3f::Zero(); // No acceleration
+    float yaw_ned_rad = _vehicle_local_position->heading(); // Keep current heading
+
+    _traj_setpoint->update(velocity_ned, acceleration_ned_m_s2, yaw_ned_rad, yaw_rate);
   }
 
 private:
@@ -182,7 +183,8 @@ private:
   sensor_msgs::msg::Image::SharedPtr _latest_road_line_img;
 
   // Trajectory setpoint publisher
-  rclcpp::Publisher<px4_msgs::msg::TrajectorySetpoint>::SharedPtr _traj_pub;
+  std::shared_ptr<px4_ros2::TrajectorySetpointType> _traj_setpoint;
+  //rclcpp::Publisher<px4_msgs::msg::TrajectorySetpoint>::SharedPtr _traj_pub;
 
   void roadLineCallback(const sensor_msgs::msg::Image::SharedPtr msg)
   {
