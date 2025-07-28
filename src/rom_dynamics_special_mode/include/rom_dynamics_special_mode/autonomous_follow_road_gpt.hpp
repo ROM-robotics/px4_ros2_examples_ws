@@ -56,6 +56,7 @@ public:
       case State::SettlingAtStart: {
           // Wait for road line image before starting
           if (_latest_road_line_img) {
+            takeoff(_meter_height);
             _state = State::FollowRoad;
           }
         }
@@ -117,8 +118,8 @@ public:
           float error_x = centroid_x - center_x;
           float error_x_norm = error_x / (W / 2.0f);
 
-          // Raw lateral velocity
-          float raw_lateral_vel = -kp_centroid * error_x_norm * max_lateral_speed;
+          // Raw lateral velocity (FIXED SIGN)
+          float raw_lateral_vel = kp_centroid * error_x_norm * max_lateral_speed;
           // EMA filter on lateral velocity
           float lateral_vel = alpha_vel * raw_lateral_vel + (1.0f - alpha_vel) * prev_lateral_vel;
           prev_lateral_vel = lateral_vel;
@@ -170,6 +171,7 @@ public:
 
 private:
   rclcpp::Node & _node;
+  float _meter_height = 7.0f;
   enum class State
   {
     SettlingAtStart = 0,
@@ -192,4 +194,21 @@ private:
     _latest_road_line_img = msg;
     // You can add image processing logic here as needed
   }
+
+  void takeoff(float _meter_height)
+{
+    // Get current position
+    Eigen::Vector3f current_pos = _vehicle_local_position->positionNed();
+    // Set target position with desired altitude (NED: negative down)
+    Eigen::Vector3f target_pos = current_pos;
+    target_pos.z() = -_meter_height; // PX4 NED: z is down, so negative for up
+
+    // Zero velocity and acceleration for takeoff
+    Eigen::Vector3f velocity_ned = Eigen::Vector3f::Zero();
+    Eigen::Vector3f acceleration_ned = Eigen::Vector3f::Zero();
+    float yaw_ned = _vehicle_local_position->heading();
+    float yaw_rate = 0.0f;
+
+    _traj_setpoint->update(target_pos, velocity_ned, yaw_ned, yaw_rate);
+}
 };

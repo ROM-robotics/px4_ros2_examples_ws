@@ -43,8 +43,8 @@ target_link_libraries(takeoff_gt_land_executor PUBLIC Eigen3::Eigen px4_ros2_cpp
 add_executable(go_triangle_land src/rom_gotriangle_land_mode.cpp)
 target_link_libraries(go_triangle_land PUBLIC Eigen3::Eigen px4_ros2_cpp::px4_ros2_cpp rclcpp::rclcpp)
 
-add_executable(rom_follow_road src/rom_follow_road.cpp)
-target_link_libraries(rom_follow_road PUBLIC Eigen3::Eigen px4_ros2_cpp::px4_ros2_cpp rclcpp::rclcpp ${OpenCV_LIBS} cv_bridge::cv_bridge)
+add_executable(follow_road src/autonomous_follow_road.cpp)
+target_link_libraries(follow_road PUBLIC Eigen3::Eigen px4_ros2_cpp::px4_ros2_cpp rclcpp::rclcpp ${OpenCV_LIBS} cv_bridge::cv_bridge)
 
 add_executable(test_setpoint src/test_setpoint.cpp)
 target_link_libraries(test_setpoint PUBLIC Eigen3::Eigen px4_ros2_cpp::px4_ros2_cpp rclcpp::rclcpp ${OpenCV_LIBS} cv_bridge::cv_bridge)
@@ -54,7 +54,7 @@ install(TARGETS
         go_triangle
         go_triangle_land
         takeoff_gt_land_executor
-        rom_follow_road
+        follow_road
         test_setpoint
         DESTINATION lib/${PROJECT_NAME})
 

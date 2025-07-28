@@ -1,6 +1,6 @@
 #include "rclcpp/rclcpp.hpp"
 
-#include <rom_dynamics_special_mode/rom_follow_road.hpp>
+#include <rom_dynamics_special_mode/autonomous_follow_road.hpp>
 #include <px4_ros2/components/node_with_mode.hpp>
 
 using MyNodeWithMode = px4_ros2::NodeWithMode<RoadFollowMode>;
