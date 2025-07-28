@@ -28,7 +28,7 @@
 
   float forward_speed = 3.0f;
 #define ROM_DEBUG 1
-
+#define ROM_UNUSED(x) (void)(x)
 #include <px4_ros2/control/setpoint_types/experimental/trajectory.hpp>
 
 static const std::string kName = "ROM FollowRoad";
@@ -57,7 +57,7 @@ public:
       case State::SettlingAtStart: {
           // Wait for road line image before starting
           if (_latest_road_line_img) {
-            takeoff(_meter_height);
+            //takeoff(_meter_height);
             _state = State::FollowRoad;
           }
         }
@@ -85,47 +85,81 @@ public:
 
           cv::Mat img = cv_ptr->image;
           int H = img.rows, W = img.cols;
+          ROM_UNUSED(H); 
           float center_x = W / 2.0f;
+          
           #ifdef ROM_DEBUG
-            RCLCPP_INFO(_node.get_logger(), "Image size: %dx%d", H, W);
-            // image size သည် 480x640 ရနေပါတယ်။ ဒါသည် camera rotation ကြောင့်လား စစ်ပါမယ်။ လက်ရှိ ကင်မရာ orientation သည် 
+            if (!debug_done_step1) 
+            {
+              debug_done_step1 = true;
+              RCLCPP_INFO(_node.get_logger(), "[ ROM DEBUG STEP1 ] Image received: %dx%d", H, W);
+            }
+            // RCLCPP_INFO(_node.get_logger(), "Altitude : %.3f", _vehicle_local_position->positionNed().z()) ;
           #endif
-
-          // Threshold red channel (BGR)
+          
+          // အမဲနောက်ခံ အနီ line ပါတဲ့ image ထဲက Threshold red channel (BGR) အနီသည် white 255 ဖြစ်လာပြီး အနီမဟုတ်တာက black 0 ဖြစ်လာမယ်။
           cv::Mat mask;
           cv::inRange(img, cv::Scalar(0, 0, 151), cv::Scalar(49, 49, 255), mask);
-
+          
+          #ifdef ROM_DEBUG`
+            if (!debug_done_step2) 
+            {
+              debug_done_step2 = true;
+              for (int i = 0; i < std::min(10, mask.rows); ++i) {
+                for (int j = 0; j < std::min(10, mask.cols); ++j) {
+                    std::cout << (int)mask.at<uchar>(i, j) << " ";
+                }
+                std::cout << std::endl;
+              }
+              std::cout << "height: " <<mask.rows << std::endl;
+              std::cout << "width: " << mask.cols << std::endl;
+            }
+          #endif
+          
           // Find nonzero mask pixels
+          // အနီ pixels တစ်ခုစီရဲ့ x,y တွေပါတဲ့ vector pts ကို ဆောက်တယ်။
           std::vector<cv::Point> pts;
           cv::findNonZero(mask, pts);
+          // အနီ pixels မရှိရင် zero velocity ပဲထားမယ်။
           if (pts.empty()) {
             setVelocitySetpoint(Eigen::Vector3f::Zero(), 0.0f);
             break;
           }
 
-          // Fit line to red pixels
-          cv::Vec4f line_params;
+          // အနီ points များအတွက် fit line ဆွဲပြီး အဲ့ဒီ fit line ရဲ့ vx နဲ့  vy vector များကိုရယူမယ်။
+          cv::Vec4f line_params; // (x1, y1, x2, y2) format or (vx, vy, x0, y0)
           cv::fitLine(pts, line_params, cv::DIST_L2, 0, 0.01, 0.01);
           float vx_fit = line_params[0], vy_fit = line_params[1];
 
           // Compute line angle
+          // atan2 က ၁၈၀  နဲ့ -၁၈၀ ကြားရှိမယ်။ 
           float angle_line = atan2f(vy_fit, vx_fit);
+
+          // ဒီနှစ်လိုင်းက တွက်ကြည့်ရင် ဥပမာ  angle_line က 30 degree ဖြစ်ရင် desired_angle က -90 ဖြစ်ပြီး သူ့ကို 0 degree
           if (angle_line > 0) angle_line -= M_PI;
           float desired_angle = -M_PI / 2.0f;
+
+          // အဖြစ်ယူဆမယ်ဆိုရင် vertical line ကနေ error သည် -60 degree အနေနဲ့ယူဆမယ်။
           float raw_angle_error = angle_line - desired_angle;
+
           while (raw_angle_error > M_PI) raw_angle_error -= 2 * M_PI;
           while (raw_angle_error < -M_PI) raw_angle_error += 2 * M_PI;
 
-          // EMA filter on angle_error
+          // EMA filter on angle_error, aplha_angle က 0.2 ဖြစ်တဲ့အတွက် previous filtered_angle_error ကို 80% အထိ သုံးမယ်။
           filtered_angle_error = alpha_angle * raw_angle_error + (1.0f - alpha_angle) * filtered_angle_error;
           float angle_error = filtered_angle_error;
 
           // Centroid calculation
           cv::Moments M = cv::moments(mask, true);
-          float centroid_x = (M.m00 == 0) ? center_x : M.m10 / M.m00;
-          float error_x = centroid_x - center_x;
-          float error_x_norm = error_x / (W / 2.0f);
 
+          // Detect မိရင် centroid_x ကိုတွက်မယ်။
+          float centroid_x = (M.m00 == 0) ? center_x : M.m10 / M.m00;
+          // image ရဲ့ center နဲ့ object ရဲ့ center ကြားက အကွာအဝေး
+          float error_x = centroid_x - center_x;
+          // error သည် -320, 320 ကြားရှိတာမို့ 320 နဲ့ စားပြီး -1 နဲ့ 1 ကြားရအောင် Normalize လုပ်ထားတယ်။
+          float error_x_norm = error_x / (W / 2.0f);
+//===========================================================================
+          /*
           // Raw lateral velocity (FIXED SIGN)
           float raw_lateral_vel = kp_centroid * error_x_norm * max_lateral_speed;
           // EMA filter on lateral velocity
@@ -155,6 +189,8 @@ public:
           float v_east  =  u * sinf(psi) + v * cosf(psi);
 
           setVelocitySetpoint(Eigen::Vector3f{v_north, v_east, 0.0f}, body_yawrate);
+        */
+        //===========================================================================
         }
         break;
     }
@@ -179,7 +215,13 @@ public:
 
 private:
   rclcpp::Node & _node;
-  float _meter_height = 7.0f;
+  float _meter_height = 15.0f;
+
+  #ifdef ROM_DEBUG
+    bool debug_done_step1 = false; 
+    bool debug_done_step2 = false;
+  #endif
+
   enum class State
   {
     SettlingAtStart = 0,
@@ -203,20 +245,26 @@ private:
     // You can add image processing logic here as needed
   }
 
-  void takeoff(float _meter_height)
-{
-    // Get current position
-    Eigen::Vector3f current_pos = _vehicle_local_position->positionNed();
-    // Set target position with desired altitude (NED: negative down)
-    Eigen::Vector3f target_pos = current_pos;
-    target_pos.z() = -_meter_height; // PX4 NED: z is down, so negative for up
+//   void takeoff(float _meter_height)
+// {
+//     // Get current position
+//     Eigen::Vector3f current_pos = _vehicle_local_position->positionNed();
+//     px4_msgs::msg::TrajectorySetpoint setpoint;
+//     // Set target position with desired altitude (NED: negative down)
+//     setpoint.position[0] = current_pos.x(); // North
+//     setpoint.position[1] = current_pos.y(); // East
+//     setpoint.position[2] = _meter_height;  // Down (negative up)
+//     // Zero velocity for takeoff
+//     setpoint.velocity[0] = 0.0f;
+//     setpoint.velocity[1] = 0.0f;
+//     setpoint.velocity[2] = 0.5f;
+//     setpoint.yaw = _vehicle_local_position->heading();
+//     setpoint.yawspeed = 0.0f;
 
-    // Zero velocity and acceleration for takeoff
-    Eigen::Vector3f velocity_ned = Eigen::Vector3f::Zero();
-    Eigen::Vector3f acceleration_ned = Eigen::Vector3f::Zero();
-    float yaw_ned = _vehicle_local_position->heading();
-    float yaw_rate = 0.0f;
+//     _traj_setpoint->update(setpoint);
 
-    _traj_setpoint->update(target_pos, velocity_ned, yaw_ned, yaw_rate);
-}
+//     #ifdef ROM_DEBUG
+//       RCLCPP_INFO(_node.get_logger(), "Takeoff to : %.1f meter",_meter_height);
+//     #endif
+// }
 };
