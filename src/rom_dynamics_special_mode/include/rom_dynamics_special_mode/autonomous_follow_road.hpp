@@ -16,13 +16,13 @@
 #include <algorithm>
 
   // --- LINE FOLLOWING PARAMETERS --- ဒါတွေကို class member အနေနဲ့ ပြောင်းသင့်ပါတယ်။
-  float kp_yaw = 0.2f;
-  float angle_tolerance = 0.2f;
+  float kp_yaw = 0.2f;              // radian to velocity gain constant, rad to rad/s
+  float angle_tolerance = 0.2f;     // angle tolerance 11.46 degrees
   float filtered_angle_error = 0.0f;
   float alpha_angle = 0.2f;
 
-  float kp_centroid = 2.0f;
-  float max_lateral_speed = 2.5f;
+  float kp_centroid = 2.0f;         // ဘေးတိုက် အမြန်နှုန်း gain constant
+  float max_lateral_speed = 2.5f;  // ဘေးတိုက် အမြန်နှုန်း (m/s)
   float prev_lateral_vel = 0.0f;
   float alpha_vel = 0.3f;
 
@@ -101,7 +101,7 @@ public:
           cv::Mat mask;
           cv::inRange(img, cv::Scalar(0, 0, 151), cv::Scalar(49, 49, 255), mask);
           
-          #ifdef ROM_DEBUG`
+          #ifdef ROM_DEBUG
             if (!debug_done_step2) 
             {
               debug_done_step2 = true;
@@ -130,17 +130,31 @@ public:
           cv::Vec4f line_params; // (x1, y1, x2, y2) format or (vx, vy, x0, y0)
           cv::fitLine(pts, line_params, cv::DIST_L2, 0, 0.01, 0.01);
           float vx_fit = line_params[0], vy_fit = line_params[1];
+          
+          #ifdef ROM_DEBUG1
+              RCLCPP_INFO(_node.get_logger(), "[ ROM DEBUG STEP2 ] Fit line params: vx: %.4f, vy: %.4f", vx_fit, vy_fit);
+          #endif
 
-          // Compute line angle
+          // Compute theta angle
           // atan2 က ၁၈၀  နဲ့ -၁၈၀ ကြားရှိမယ်။ 
-          float angle_line = atan2f(vy_fit, vx_fit);
+          float theta_angle = atan2f(vy_fit, vx_fit);
+          #ifdef ROM_DEBUG1
+              RCLCPP_INFO(_node.get_logger(), "[ ROM DEBUG STEP2 ] theta_angle_deg %.4f", theta_angle * 57.2958);
+          #endif
 
-          // ဒီနှစ်လိုင်းက တွက်ကြည့်ရင် ဥပမာ  angle_line က 30 degree ဖြစ်ရင် desired_angle က -90 ဖြစ်ပြီး သူ့ကို 0 degree
-          if (angle_line > 0) angle_line -= M_PI;
-          float desired_angle = -M_PI / 2.0f;
+          // ဒီနှစ်လိုင်းက တွက်ကြည့်ရင် ဥပမာ  theta_angle က 30 degree ဖြစ်ရင် desired_angle က -90 အမြဲတမ်း constant ဖြစ်ပြီး raw anglee error က -60 ဖြစ်ပါတယ်။
+          //if (theta_angle > 0) theta_angle -= M_PI;
+          float desired_angle = M_PI / 2.0f;
 
           // အဖြစ်ယူဆမယ်ဆိုရင် vertical line ကနေ error သည် -60 degree အနေနဲ့ယူဆမယ်။
-          float raw_angle_error = angle_line - desired_angle;
+          float raw_angle_error = fabs(theta_angle) - desired_angle;
+          if(theta_angle < 0) {
+            // theta_angle က negative ဖြစ်ရင် angle error ကို -1 လုပ်မယ်။
+            raw_angle_error *= -1.0f;
+          }
+          #ifdef ROM_DEBUG1
+              RCLCPP_INFO(_node.get_logger(), "[ ROM DEBUG STEP2 ] raw_angle_error %.4f", raw_angle_error * 57.2958);
+          #endif
 
           while (raw_angle_error > M_PI) raw_angle_error -= 2 * M_PI;
           while (raw_angle_error < -M_PI) raw_angle_error += 2 * M_PI;
@@ -148,7 +162,7 @@ public:
           // EMA filter on angle_error, aplha_angle က 0.2 ဖြစ်တဲ့အတွက် previous filtered_angle_error ကို 80% အထိ သုံးမယ်။
           filtered_angle_error = alpha_angle * raw_angle_error + (1.0f - alpha_angle) * filtered_angle_error;
           float angle_error = filtered_angle_error;
-
+          // ============================================================== angle_error တွက်ပြီးပြီ။
           // Centroid calculation
           cv::Moments M = cv::moments(mask, true);
 
@@ -158,11 +172,11 @@ public:
           float error_x = centroid_x - center_x;
           // error သည် -320, 320 ကြားရှိတာမို့ 320 နဲ့ စားပြီး -1 နဲ့ 1 ကြားရအောင် Normalize လုပ်ထားတယ်။
           float error_x_norm = error_x / (W / 2.0f);
-//===========================================================================
-          /*
-          // Raw lateral velocity (FIXED SIGN)
+
+          // error မရှိရင် speed က 0
+          // error -1 ဖြစ်ရင် -5, error 1 ဖြစ်ရင် 5 ဖြစ်မယ်။
           float raw_lateral_vel = kp_centroid * error_x_norm * max_lateral_speed;
-          // EMA filter on lateral velocity
+          // EMA နဲ့ noise ကို စစ်ထုတ်မယ်။
           float lateral_vel = alpha_vel * raw_lateral_vel + (1.0f - alpha_vel) * prev_lateral_vel;
           prev_lateral_vel = lateral_vel;
 
@@ -171,26 +185,39 @@ public:
           float body_right = 0.0f;
           float body_yawrate = 0.0f;
 
-          if (fabs(angle_error) > angle_tolerance) {
+          // ================================================================ angle error ပြန်သုံးမယ်။
+          // angle_error က 20 degree ထက်ပိုရင် body_forward, body_right ကို 0 လုပ်ပြီး yawrate ကို ပဲတွက်မယ်
+          if (fabs(angle_error) > angle_tolerance) 
+          {
             body_forward = 0.0f;
             body_right = 0.0f;
-            body_yawrate = -kp_yaw * angle_error;
-          } else {
+            body_yawrate = kp_yaw * angle_error; // 0.2 * 0.3491 rad(20 degrees) = 0.06982 rad/s
+          } 
+          // angle_error က 20 degree ထက်နည်းရင် အကုန်တွက်မယ်။
+          else {
             body_forward = forward_speed;
             body_right = lateral_vel;
-            body_yawrate = -kp_yaw * angle_error;
+            body_yawrate = kp_yaw * angle_error;
           }
+          #ifdef ROM_DEBUG
+              RCLCPP_INFO(_node.get_logger(), "[ ROM DEBUG STEP3 ] angle_err(deg): %.4f, kp_yaw: %.4f, yaw_rate(rad/s): %.4f", angle_error * 57.2958, kp_yaw, body_yawrate);
+          #endif
 
           // Convert body-frame (forward, right) to NED (PX4 expects NED)
-          float psi = _vehicle_local_position->heading();
+          float ψ = _vehicle_local_position->heading(); // ψ က drone ရဲ့ ့ heading, yaw angle
           float u = body_forward;
           float v = body_right;
-          float v_north =  u * cosf(psi) - v * sinf(psi);
-          float v_east  =  u * sinf(psi) + v * cosf(psi);
+          float v_north =  u * cosf(ψ) - v * sinf(ψ);
+          float v_east  =  u * sinf(ψ) + v * cosf(ψ);
+
+          // float v_north =  body_right;
+          // float v_east  =  body_forward;
 
           setVelocitySetpoint(Eigen::Vector3f{v_north, v_east, 0.0f}, body_yawrate);
-        */
-        //===========================================================================
+          #ifdef ROM_DEBUG
+              RCLCPP_INFO(_node.get_logger(), "[ ROM DEBUG STEP3 ] v_north(m/s): %.4f, v_east(m/s): %.4f", v_north, body_right);
+          #endif
+
         }
         break;
     }
