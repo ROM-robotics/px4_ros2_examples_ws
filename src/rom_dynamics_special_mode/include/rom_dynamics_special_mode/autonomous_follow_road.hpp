@@ -53,6 +53,7 @@ public:
 
   void updateSetpoint(float dt_s) override
   {
+    ROM_UNUSED(dt_s);
     switch (_state) {
       case State::SettlingAtStart: {
           // Wait for road line image before starting

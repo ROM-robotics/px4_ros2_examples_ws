@@ -5,6 +5,9 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 # find dependencies
 find_package(ament_cmake REQUIRED)
 
@@ -46,15 +49,18 @@ target_link_libraries(go_triangle_land PUBLIC Eigen3::Eigen px4_ros2_cpp::px4_ro
 add_executable(follow_road src/autonomous_follow_road.cpp)
 target_link_libraries(follow_road PUBLIC Eigen3::Eigen px4_ros2_cpp::px4_ros2_cpp rclcpp::rclcpp ${OpenCV_LIBS} cv_bridge::cv_bridge)
 
+add_executable(follow_road_executor src/autonomous_follow_road_mode_executor.cpp)
+target_link_libraries(follow_road_executor PUBLIC Eigen3::Eigen px4_ros2_cpp::px4_ros2_cpp rclcpp::rclcpp ${OpenCV_LIBS} cv_bridge::cv_bridge)
+
 add_executable(test_setpoint src/test_setpoint.cpp)
 target_link_libraries(test_setpoint PUBLIC Eigen3::Eigen px4_ros2_cpp::px4_ros2_cpp rclcpp::rclcpp ${OpenCV_LIBS} cv_bridge::cv_bridge)
-install(TARGETS test_setpoint DESTINATION lib/${PROJECT_NAME})
 
 install(TARGETS
         go_triangle
         go_triangle_land
         takeoff_gt_land_executor
         follow_road
+        follow_road_executor
         test_setpoint
         DESTINATION lib/${PROJECT_NAME})
 
