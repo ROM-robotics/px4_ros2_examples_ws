@@ -1,3 +1,0 @@
-[submodule "rom_flight_control"]
-	path = rom_flight_control
-	url = https://github.com/ROM-robotics/rom_flight_control.git
