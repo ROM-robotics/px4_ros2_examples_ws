@@ -1,0 +1,12 @@
+[submodule "rom_flight_control"]
+	path = rom_flight_control
+	url = git@github.com:ROM-robotics/rom_flight_control.git
+	branch = rom_release/v1.16
+[submodule "src/px4_msgs"]
+	path = src/px4_msgs
+	url = git@github.com:ROM-robotics/px4_msgs.git
+	branch = release/1.16
+[submodule "px4-ros2-interface-lib"]
+	path = px4-ros2-interface-lib
+	url = git@github.com:ROM-robotics/px4-ros2-interface-lib.git
+	branch = release/1.16
